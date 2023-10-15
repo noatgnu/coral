@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "coral"
+version = "0.1.0"
+description = ""
+authors = ["Toan Phung <toan.phung@proteo.info>"]
+readme = "README.md"
+packages = [{include = "coral"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<3.12"
+rpy2 = "^3.5.14"
+pandas = "^2.1.1"
+numpy = "^1.26.1"
+click = "^8.1.7"
+
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
