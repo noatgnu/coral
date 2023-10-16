@@ -1,3 +1,5 @@
+import logging
+
 import click
 
 from coral.data import Coral
@@ -5,7 +7,7 @@ from coral.utility import detect_delimiter_from_extension
 import pandas as pd
 
 
-@click.command()
+@click.command(name="analyze")
 @click.option("--unprocessed", "-u", type=click.Path(exists=True), help="Unprocessed file with sample intensity columns as well with index columns")
 @click.option("--annotation", "-a", type=click.Path(exists=True), help="Annotation file with two columns one with sample column names the other is the condition or group that the samples should be assigned to.")
 @click.option("--comparison", "-c", type=click.Path(exists=True), help="Comparison file with three columns the first two with the condition or group names in pair for comparison A-B and the last with the comparison label.")
@@ -48,8 +50,6 @@ def main(unprocessed: str, annotation: str, comparison: str, output: str, col_fi
     else:
         result = result[0]
     result.to_csv(output, sep="\t", index=False)
-
-
 
 if __name__ == "__main__":
     main()

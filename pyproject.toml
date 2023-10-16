@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "coral"
+name = "ccore-coral"
 version = "0.1.0"
 description = ""
 authors = ["Toan Phung <toan.phung@proteo.info>"]
@@ -18,3 +18,6 @@ click = "^8.1.7"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+coral = "coral.main:main"
