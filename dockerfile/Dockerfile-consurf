@@ -1,0 +1,62 @@
+# python stand_alone_consurf.py --algorithm HMMER --Maximum_Likelihood --seq /home/zz950/softwares/ConSurf/test.fasta --dir /home/zz950/softwares/ConSurf/test
+# docker run --rm -v ".\data:/data" consurf-alone:0.0.1 --algorithm HMMER --Maximum_Likelihood --seq /data/lrrk2.fasta --dir /data/lrrk2output
+
+FROM python:3.8-bullseye
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+RUN apt-get update
+RUN apt-get -y upgrade
+RUN apt-get -y install git ant
+RUN git clone https://github.com/ddarriba/prottest3.git
+RUN sed -i 's|statsFile = new File(workAlignment + STATS_FILE_SUFFIX + "txt")|statsFile = new File(workAlignment + STATS_FILE_SUFFIX + ".txt")|g' /app/prottest3/src/main/java/es/uvigo/darwin/prottest/exe/PhyMLv3AminoAcidRunEstimator.java
+WORKDIR /app/prottest3
+RUN ant jar
+WORKDIR /app/
+RUN git clone https://github.com/leezx/ConSurf-StandAlone.git
+#WORKDIR /app/rate4site
+#RUN wget https://www.tau.ac.il/~itaymay/cp/rate4site.3.2.source.zip
+#RUN unzip rate4site.3.2.source.zip
+#WORKDIR /app/rate4site/rate4site.3.2.source/sourceMar09
+#RUN sed -i 's|\*_errorOut != cerr|!\(_errorOut == &cerr\)|g' errorMsg.cpp
+
+#RUN make
+WORKDIR /app/ConSurf-StandAlone
+RUN tar zxvf rate4site-3.0.0.tar.gz
+WORKDIR /app/ConSurf-StandAlone/rate4site-3.0.0
+RUN sed -i 's/_errorOut != NULL && \*_errorOut != cerr/_errorOut != nullptr \&\& !(_errorOut == \&cerr)/g' /app/ConSurf-StandAlone/rate4site-3.0.0/src/phylogeny/errorMsg.cpp
+RUN sed -i 's|f==NULL|f.fail()|g' /app/ConSurf-StandAlone/rate4site-3.0.0/src/phylogeny/someUtil.cpp
+RUN sed -i 's|file1==NULL|file1.fail()|g' /app/ConSurf-StandAlone/rate4site-3.0.0/src/phylogeny/someUtil.cpp
+RUN sed -i 's|out_f == NULL|out_f.fail()|g' /app/ConSurf-StandAlone/rate4site-3.0.0/src/rate4site/rate4siteOptions.cpp
+RUN ./configure --prefix=/app/rate4site
+
+RUN make
+RUN make install
+RUN apt-get install -y hmmer clustalw cd-hit mafft prank muscle phyml
+RUN ln -s /usr/bin/phyml /app/prottest3/dist/bin/PhyML_3.0_linux64
+RUN pip install biopython requests
+
+#RUN pip install hmmer=3.1 clustalw=2.1 cd-hit mafft=7 prank muscle=3
+RUN sed -i 's|/bioseq/cd_hit/|/usr/bin/|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/GENERAL_CONSTANTS.py
+RUN sed -i 's|/bioseq/FASTA/uniprot/uniref90.fa|/data/uniref90.fasta|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/GENERAL_CONSTANTS.py
+#RUN sed -i 's|/bioseq/pupkoSVN/trunk/programs/rate4site/rate4site|/app/rate4site/rate4site.3.2.source/sourceMar09/rate4site|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/GENERAL_CONSTANTS.py
+RUN sed -i 's|/bioseq/pupkoSVN/trunk/programs/rate4site/rate4site|/app/rate4site/bin/rate4site|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/GENERAL_CONSTANTS.py
+RUN sed -i 's|/app/rate4site/bin/rate4site.doubleRep|/app/rate4site/bin/rate4site_doublerep|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/GENERAL_CONSTANTS.py
+
+RUN sed -i 's|/powerapps/share/centos7/clustalw/clustalw-2.1-linux-x86_64-libcppstatic/clustalw|/usr/bin/clustalw2|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/GENERAL_CONSTANTS.py
+RUN sed -i 's|/bioseq/Programs/MAFFT_7.222/installation/bin/mafft|/usr/bin/mafft|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/GENERAL_CONSTANTS.py
+RUN sed -i 's|/powerapps/share/bin/prank|/usr/bin/prank|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/GENERAL_CONSTANTS.py
+RUN sed -i 's|/bioseq/Programs/muscle_3.6_from_BIOCLUSTER/muscle3.6/muscle|/usr/bin/muscle|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/GENERAL_CONSTANTS.py
+RUN sed -i 's|/bioseq/Programs/ModelTest/prottest-3.4.1/prottest-3.4.1.jar|/app/prottest3/dist/prottest-3.4.2.jar|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/stand_alone_consurf.py
+RUN sed -i 's|--cpu 1|--cpu 20|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/stand_alone_consurf.py
+#RUN sed -i 's|java -jar %s -log disabled -i %s -AICC -o %s -S 1 -JTT -LG -MtREV -Dayhoff -WAG -CpREV -threads 1|%s -i %s -AICC -o %s -S 1 -JTT -LG -MtREV -Dayhoff -WAG -CpREV -threads 10|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/stand_alone_consurf.py
+RUN sed -i 's|java -jar %s -log disabled -i %s -AICC -o %s -S 1 -JTT -LG -MtREV -Dayhoff -WAG -CpREV -threads 1|java -jar %s -log disabled -i %s -AICC -o %s -S 1 -JTT -LG -MtREV -Dayhoff -WAG -CpREV -threads 10|g' /app/ConSurf-StandAlone/stand_alone_consurf-1.00/stand_alone_consurf.py
+
+ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+ENV OMPI_ALLOW_RUN_AS_ROOT=1
+
+WORKDIR /app/ConSurf-StandAlone/stand_alone_consurf-1.00
+
+ENTRYPOINT ["python","stand_alone_consurf.py"]
+#ENTRYPOINT ["sleep","infinity"]
