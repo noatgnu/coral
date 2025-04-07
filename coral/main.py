@@ -1,11 +1,8 @@
 import logging
-
 import click
-
 from coral.data import Coral
 from coral.utility import detect_delimiter_from_extension
 import pandas as pd
-
 
 @click.command(name="analyze")
 @click.option("--unprocessed", "-u", type=click.Path(exists=True), help="Unprocessed file with sample intensity columns as well with index columns")
@@ -20,6 +17,21 @@ import pandas as pd
 @click.option("--aggregate-column", "-t", type=str, help="Column for aggregation", default="")
 @click.option("--index-columns", "-x", type=str, help="Index columns delimited by comma", default="")
 def main(unprocessed: str, annotation: str, comparison: str, output: str, col_filter: float, row_filter: float, impute: str, normalize: str, aggregate_method: str, aggregate_column: str, index_columns: str):
+    """
+    Main function to analyze the data using the Coral class.
+
+    :param unprocessed: Path to the unprocessed file.
+    :param annotation: Path to the annotation file.
+    :param comparison: Path to the comparison file.
+    :param output: Path to the output file.
+    :param col_filter: Threshold for filtering columns with missing values.
+    :param row_filter: Threshold for filtering rows with missing values.
+    :param impute: Method for imputing missing values.
+    :param normalize: Method for normalizing data.
+    :param aggregate_method: Method for aggregating data.
+    :param aggregate_column: Column for aggregation.
+    :param index_columns: Index columns delimited by comma.
+    """
     coral = Coral()
     coral.load_unproccessed_file(unprocessed, sep=detect_delimiter_from_extension(unprocessed))
     annotation_df = pd.read_csv(annotation, sep=detect_delimiter_from_extension(annotation))

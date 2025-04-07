@@ -11,6 +11,9 @@ from coral.utility import replace_special_with_dot
 
 class Coral:
     def __init__(self):
+        """
+        Initialize the Coral class with default attributes.
+        """
         self.df: pd.DataFrame | None = None
         self.unprocessed_df: pd.DataFrame | None = None
         self.conditions: list[str] = []
@@ -26,30 +29,59 @@ class Coral:
         self.design = None
 
     def load_unproccessed_file(self, file_path: str, sep: str = "\t"):
+        """
+        Load an unprocessed file into a pandas DataFrame and convert it to an R DataFrame.
+
+        :param file_path: Path to the unprocessed file.
+        :param sep: Separator used in the file.
+        """
         self.unprocessed_df = pd.read_csv(file_path, sep=sep,
                                           na_values=["NA", "NaN", "N/A", "#VALUE!"])
         with (ro.default_converter + pandas2ri.converter).context():
             self.r_unprocessed_df = ro.conversion.get_conversion().py2rpy(self.unprocessed_df)
 
     def add_condition(self, condition: str):
+        """
+        Add a condition to the conditions list.
+
+        :param condition: Condition to be added.
+        """
         if condition not in self.conditions:
             self.conditions.append(condition)
         else:
             logging.warning(f"Condition {condition} already in conditions")
 
     def add_sample(self, sample: str):
+        """
+        Add a sample to the samples list.
+
+        :param sample: Sample to be added.
+        """
         if sample not in self.samples:
             self.samples.append(sample)
         else:
             logging.warning(f"Sample {sample} already in samples")
 
     def add_condition_map(self, condition: str, samples: list[str]):
+        """
+        Map samples to a condition.
+
+        :param condition: Condition to be mapped.
+        :param samples: List of samples to be mapped to the condition.
+        """
         for s in samples:
             if s not in self.samples:
                 logging.warning(f"Sample {s} not found in samples")
             self.sample_condition_dict[s] = condition
 
     def add_comparison(self, condition_A: str, condition_B: str, comparison_lable: str | None = None):
+        """
+        Add a comparison between two conditions.
+
+        :param condition_A: First condition.
+        :param condition_B: Second condition.
+        :param comparison_lable: Label for the comparison.
+        """
         if condition_A not in self.conditions or condition_B not in self.conditions:
             raise ValueError(f"Condition {condition_A} or {condition_B} not found in conditions")
         if not comparison_lable:
@@ -57,6 +89,9 @@ class Coral:
         self.comparison_dict[comparison_lable] = [condition_A, condition_B]
 
     def prepare(self):
+        """
+        Prepare the data for analysis by converting it to an R QFeatures object.
+        """
         assert type(self.unprocessed_df) is pd.DataFrame
         assert self.r_unprocessed_df is not None
         assert len(self.conditions) > 0
@@ -96,6 +131,11 @@ class Coral:
         self.current_assay_name = "startingDF"
 
     def impute(self, method: str = "knn"):
+        """
+        Impute missing values in the data.
+
+        :param method: Imputation method to be used.
+        """
         ro.r(f"""
         print(data)
         data <- impute(data, method = "{method}", i ="startingDF")
@@ -105,9 +145,9 @@ class Coral:
 
     def filter_missing_columns(self, threshold: float = 0.7):
         """
-        Filter out columns where more than threshold of the values are missing must be used before prepare QFeatures object
-        :param threshold:
-        :return:
+        Filter out columns where more than a threshold of the values are missing.
+
+        :param threshold: Threshold for filtering columns.
         """
         assert type(self.unprocessed_df) is pd.DataFrame
         keep_columns = []
@@ -125,9 +165,9 @@ class Coral:
 
     def filter_missing_rows(self, threshold: float = 0.7):
         """
-        Filter out rows where more than threshold of the values are missing must be used after prepare QFeatures object
-        :param threshold:
-        :return:
+        Filter out rows where more than a threshold of the values are missing.
+
+        :param threshold: Threshold for filtering rows.
         """
         assert self.q_object is not None
         ro.r(f"""
@@ -137,8 +177,7 @@ class Coral:
 
     def log_transform(self):
         """
-        Log transform the data must be used after preparing QFeatures object and imputing data
-        :return:
+        Log transform the data.
         """
         ro.r(f"""
         data <- addAssay(data, logTransform(data[[seq_along(data)[length(seq_along(data))]]]), name="log2")
@@ -148,9 +187,9 @@ class Coral:
 
     def normalize(self, method: str = "quantiles.robust"):
         """
-        Normalize the data must be used after log transform
-        :param method:
-        :return:
+        Normalize the data.
+
+        :param method: Normalization method to be used.
         """
         ro.r(f"""
         data <- addAssay(data, normalize(data[[seq_along(data)[length(seq_along(data))]]], method="{method}"), name="norm")
@@ -160,10 +199,10 @@ class Coral:
 
     def aggregate_features(self, feature_column: str, method: str = "MsCoreUtils::robustSummary"):
         """
-        Aggregate features must be used after log transform and before normalization
-        :param method:
-        :param feature_column:
-        :return:
+        Aggregate features in the data.
+
+        :param feature_column: Column to be used for aggregation.
+        :param method: Aggregation method to be used.
         """
         assert feature_column in self.index_columns
         feature_column = replace_special_with_dot(feature_column)
@@ -178,8 +217,7 @@ class Coral:
 
     def prepare_for_limma(self):
         """
-        Prepare data for limma must be used after log transform and normalization
-        :return:
+        Prepare data for limma analysis.
         """
         ro.r(f"""
         design <- model.matrix(~0+data$group)
@@ -191,8 +229,7 @@ class Coral:
 
     def run_limma(self):
         """
-        Run limma must be used after prepare_for_limma
-        :return:
+        Run limma analysis on the data.
         """
         assert self.design is not None
         assert self.comparison_dict
@@ -217,3 +254,15 @@ class Coral:
                 pd_from_r_df = ro.conversion.get_conversion().rpy2py(result)
                 pd_from_r_df["comparison"] = comp
                 yield pd_from_r_df
+
+    def export_df_from_R(self, file_path: str, sep: str = "\t"):
+        """
+        Export the current R DataFrame to a file.
+
+        :param file_path: Path to the output file.
+        :param sep: Separator to be used in the output file.
+        """
+        ro.r(f"""
+        tempt.df <- cbind(as.data.frame(rowData(data[[currentAssayName]])), assay(data, currentAssayName))
+        write.table(tempt.df, file="{file_path}", sep="{sep}", row.names=TRUE, col.names=TRUE, quote=FALSE)
+        """)
